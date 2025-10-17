@@ -307,6 +307,8 @@ Return nil otherwise."
 (defun immersive-translate--get-paragraph ()
   "Return the paragraph at point."
   (pcase major-mode
+    ('org-mode
+     (immersive-translate--org-get-paragraph))
     ('Info-mode
      (immersive-translate--info-get-paragraph))
     ('helpful-mode
