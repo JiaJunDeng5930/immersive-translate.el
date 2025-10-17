@@ -18,6 +18,7 @@
 (require 'dom)
 (require 'auth-source)
 (require 'text-property-search)
+(require 'subr-x)
 (require 'immersive-translate-baidu)
 (require 'immersive-translate-chatgpt)
 (require 'immersive-translate-trans)
@@ -178,14 +179,14 @@ not be translated."
 (defun immersive-translate--helpful-not-doc-p ()
   "Return non-nil if point is not in the doc section."
   (when (eq major-mode 'helpful-mode)
-    (when-let ((doc-beg (save-excursion
-                          (goto-char (point-min))
-                          (re-search-forward "^Documentation$" nil 'noerror)
-                          (line-beginning-position)))
-               (doc-end (save-excursion
-                          (goto-char (point-min))
-                          (re-search-forward "^References$" nil 'noerror)
-                          (line-beginning-position))))
+    (when-let* ((doc-beg (save-excursion
+                           (goto-char (point-min))
+                           (re-search-forward "^Documentation$" nil 'noerror)
+                           (line-beginning-position)))
+                (doc-end (save-excursion
+                           (goto-char (point-min))
+                           (re-search-forward "^References$" nil 'noerror)
+                           (line-beginning-position))))
       (or (< (point) doc-beg)
           (>= (point) doc-end)))))
 
@@ -198,7 +199,7 @@ not be translated."
   "Return non-nil if the current paragraph has been translated."
   (save-excursion
     (immersive-translate-end-of-paragraph)
-    (when-let ((overlays (overlays-in (1- (point)) (1+ (point)))))
+    (when-let* ((overlays (overlays-in (1- (point)) (1+ (point)))))
       (cl-some (lambda (ov)
                  (overlay-get ov 'after-string))
                overlays))))
@@ -229,11 +230,11 @@ By default, `immersive-translate-chatgpt-host' is used as HOST
 and \"apikey\" as USER in Chatgpt backend.
 \"fanyi-api.baidu.com\" is used as HOST and
 `immersive-translate-baidu-appid' as USER in Baidu backend."
-  (if-let ((secret (plist-get (car (auth-source-search
-                                    :host host
-                                    :user user
-                                    :require '(:secret)))
-                              :secret)))
+  (if-let* ((secret (plist-get (car (auth-source-search
+                                     :host host
+                                     :user user
+                                     :require '(:secret)))
+                               :secret)))
       (if (functionp secret)
           (encode-coding-string (funcall secret) 'utf-8)
         secret)
