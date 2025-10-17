@@ -285,6 +285,16 @@ Advice for ORIG (shr-tag-*)."
   (let ((para (thing-at-point 'paragraph t)))
     (string-trim-left para "\n\\[.*?\\] \\- \\[.*?\\]:\n")))
 
+(defun immersive-translate--org-get-paragraph ()
+  "Return the paragraph at point using ASCII empty lines as separators.
+
+This ignores Org mode's own paragraph rules so that immersive
+translation respects literal blank lines in the buffer."
+  (save-excursion
+    (let ((paragraph-start "^[ \t]*$")
+          (paragraph-separate "^[ \t]*$"))
+      (thing-at-point 'paragraph t))))
+
 (defun immersive-translate--elfeed-tube-p (&optional mode)
   "Return non-nil if the current feed in MODE is a Youtube RSS feed.
 
