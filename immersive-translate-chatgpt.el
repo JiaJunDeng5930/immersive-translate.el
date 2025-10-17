@@ -33,17 +33,25 @@
 ;;; Code:
 
 (require 'immersive-translate-curl)
-
-(declare-function immersive-translate-api-key "ext:immersive-translate")
+(require 'subr-x)
 
 (defgroup immersive-translate-chatgpt nil
   "Immersive translate chatgpt backend."
   :group 'immersive-translate)
 
-(defcustom immersive-translate-chatgpt-host "api.openai.com"
-  "The OpenAI API host queried by immersive-translate."
+(defcustom immersive-translate-chatgpt-host "https://api.openai.com/v1/chat/completions"
+  "Endpoint used for ChatGPT requests.
+
+该变量的值会被直接用作请求 URL，不做任何拼接或修改。"
   :group 'immersive-translate-chatgpt
   :type 'string)
+
+(defcustom immersive-translate-chatgpt-api-key nil
+  "API key sent with ChatGPT requests.
+
+若后端不需要认证，可保持为 nil。"
+  :group 'immersive-translate-chatgpt
+  :type '(choice (const :tag "Unset" nil) string))
 
 (defcustom immersive-translate-chatgpt-model "gpt-3.5-turbo-0613"
   "GPT Model for chat.
@@ -99,16 +107,16 @@ Argument PROMPTS are for sending to chatgpt."
   "Produce list of arguments for calling Curl.
 
 PROMPTS is the data to send, TOKEN is a unique identifier."
-  (let* ((url (format "https://%s/v1/chat/completions"
-                      immersive-translate-chatgpt-host))
+  (let* ((url immersive-translate-chatgpt-host)
          (data (encode-coding-string
                 (json-encode (immersive-translate-chatgpt--request-data prompts))
                 'utf-8))
          (headers
-          `(("Content-Type" . "application/json")
-            ("Authorization" . ,(concat "Bearer " (immersive-translate-api-key
-                                                   immersive-translate-chatgpt-host
-                                                   "apikey"))))))
+          (append
+           '(("Content-Type" . "application/json"))
+           (when (and immersive-translate-chatgpt-api-key
+                      (not (string-empty-p immersive-translate-chatgpt-api-key)))
+             `(("Authorization" . ,(concat "Bearer " immersive-translate-chatgpt-api-key)))))))
     (append
      (list "--location" "--silent" "--compressed" "--disable"
            (format "-X%s" "POST")
@@ -120,8 +128,9 @@ PROMPTS is the data to send, TOKEN is a unique identifier."
        (list "--proxy" immersive-translate-chatgpt-proxy
              "--proxy-negotiate"
              "--proxy-user" ":"))
-     (cl-loop for (key . val) in headers
-              collect (format "-H%s: %s" key val))
+     (mapcar (lambda (header)
+               (format "-H%s: %s" (car header) (cdr header)))
+             headers)
      (list url))))
 
 (defun immersive-translate-chatgpt-create-prompt (content)
