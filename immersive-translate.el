@@ -385,18 +385,20 @@ translation should be inserted."
 
 (defun immersive-translate--transform-response (content-str &optional marker)
   "Format CONTENT-STR at MARKER."
-  (pcase major-mode
-    ('Info-mode
-     (immersive-translate--info-transform-response content-str marker))
-    ('nov-mode
-     (immersive-translate--nov-transform-response content-str marker))
-    ((or 'elfeed-show-mode 'mu4e-view-mode)
-     (immersive-translate--elfeed-transform-response content-str marker))
-    ((or 'helpful-mode
-         'help-mode)
-     (immersive-translate--help-transform-response content-str marker))
-    (_
-     (immersive-translate--format-translation content-str marker))))
+  (let ((result
+         (pcase major-mode
+           ('Info-mode
+            (immersive-translate--info-transform-response content-str marker))
+           ('nov-mode
+            (immersive-translate--nov-transform-response content-str marker))
+           ((or 'elfeed-show-mode 'mu4e-view-mode)
+            (immersive-translate--elfeed-transform-response content-str marker))
+           ((or 'helpful-mode
+                'help-mode)
+            (immersive-translate--help-transform-response content-str marker))
+           (_
+            (immersive-translate--format-translation content-str marker)))))
+    (string-trim result)))
 
 
 ;;;; utility functions
