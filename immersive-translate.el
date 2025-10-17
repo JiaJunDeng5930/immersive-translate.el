@@ -338,7 +338,6 @@ STR is the original translation. MARKER is the position where the
 translation should be inserted."
   (with-temp-buffer
     (insert str)
-    (fill-region-as-paragraph (point-min) (point-max))
     (concat
      "\n"
      (replace-regexp-in-string
