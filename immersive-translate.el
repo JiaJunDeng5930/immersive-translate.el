@@ -512,12 +512,20 @@ Nil otherwise."
        (while (and (text-property-search-forward 'immersive-translate--end)
                    (< (point) end))
          (immersive-translate-paragraph)))
-      (_ (while (and
-                 (< (point) end)
-                 (re-search-forward "^\\s-*$" end 'noerror)
-                 (not (eobp)))
-           (forward-line)
-           (immersive-translate-paragraph))))))
+      ('org-mode
+       (while (and
+               (< (point) end)
+               (re-search-forward "^[ \t]*$" end 'noerror)
+               (not (eobp)))
+         (forward-line)
+         (immersive-translate-paragraph)))
+      (_
+       (while (and
+               (< (point) end)
+               (re-search-forward "^\\s-*$" end 'noerror)
+               (not (eobp)))
+         (forward-line)
+         (immersive-translate-paragraph))))))
 
 ;;;###autoload
 (defun immersive-translate-abort (buf)
