@@ -487,7 +487,12 @@ Nil otherwise."
        (text-property-search-backward 'immersive-translate--beg))
      (text-property-search-forward 'immersive-translate--end)
      (end-of-line))
-    (_ (end-of-paragraph-text))))
+    ('org-mode
+     (let ((paragraph-start "^[ \t]*$")
+           (paragraph-separate "^[ \t]*$"))
+       (end-of-paragraph-text)))
+    (_
+     (end-of-paragraph-text))))
 
 (defun immersive-translate-join-lin (paragraph)
   "Form the current PARAGRAPH into a continuous paragraph."
