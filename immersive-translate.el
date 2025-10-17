@@ -123,8 +123,34 @@ string. It should return the transformed string."
   :group 'immersive-translate
   :type 'directory)
 
+(defcustom immersive-translate-chinese-threshold 0.3
+  "Maximum ratio of Chinese characters allowed before skipping translation.
+
+Paragraphs whose Chinese character ratio exceeds this value will
+not be translated."
+  :group 'immersive-translate
+  :type 'float)
+
 (defun immersive-translate--gptel-filter-result (str)
   (replace-regexp-in-string "```" "" str))
+
+(defun immersive-translate--chinese-ratio (string)
+  "Return the ratio of Chinese characters contained in STRING."
+  (when (and string (not (string-empty-p string)))
+    (let ((total (length string))
+          (count 0))
+      (with-temp-buffer
+        (insert string)
+        (goto-char (point-min))
+        (while (re-search-forward "\\cc" nil t)
+          (setq count (1+ count))))
+      (/ (float count) total))))
+
+(defun immersive-translate--too-many-chinese-p ()
+  "Return non-nil when the current paragraph contains too many Chinese characters."
+  (when-let* ((paragraph (immersive-translate--get-paragraph)))
+    (let ((ratio (immersive-translate--chinese-ratio paragraph)))
+      (> ratio immersive-translate-chinese-threshold))))
 
 (defun immersive-translate--info-code-block-p ()
   "Return non-nil if the current paragraph is a code block."
@@ -181,7 +207,8 @@ string. It should return the transformed string."
                                                     immersive-translate--info-code-block-p
                                                     immersive-translate--info-menu-p
                                                     immersive-translate--helpful-not-doc-p
-                                                    immersive-translate--help-signature-p)
+                                                    immersive-translate--help-signature-p
+                                                    immersive-translate--too-many-chinese-p)
   "Predicates, return t when the current paragraph should not be translated.
 
 Predicate functions don't take any arguments."
