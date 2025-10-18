@@ -323,6 +323,51 @@ translation respects literal blank lines in the buffer."
           (paragraph-separate "^[ \t]*$"))
       (thing-at-point 'paragraph t))))
 
+(defun immersive-translate--markdown-get-paragraph ()
+  "Return the paragraph at point in Markdown derived modes.
+
+Treat consecutive non-blank lines as one logical paragraph so
+that Markdown inline markers such as \"**\" do not break the
+extracted text."
+  (save-excursion
+    (let* ((current-line
+            (buffer-substring-no-properties
+             (line-beginning-position)
+             (line-end-position))))
+      (unless (string-blank-p current-line)
+        (let ((paragraph-beg (line-beginning-position))
+              (paragraph-end (line-end-position)))
+          ;; Extend backwards until a blank line or buffer start.
+          (let ((looking-back t))
+            (while (and looking-back (> (point) (point-min)))
+              (forward-line -1)
+              (let ((prev-line
+                     (buffer-substring-no-properties
+                      (line-beginning-position)
+                      (line-end-position))))
+                (if (string-blank-p prev-line)
+                    (progn
+                      (forward-line 1)
+                      (setq paragraph-beg (line-beginning-position))
+                      (setq looking-back nil))
+                  (setq paragraph-beg (line-beginning-position))))))
+          ;; Position at paragraph start.
+          (goto-char paragraph-beg)
+          ;; Extend forwards until a blank line or buffer end.
+          (let ((looking-forward t))
+            (while looking-forward
+              (let ((line
+                     (buffer-substring-no-properties
+                      (line-beginning-position)
+                      (line-end-position))))
+                (if (string-blank-p line)
+                    (setq looking-forward nil)
+                  (setq paragraph-end (line-end-position))
+                  (if (>= (line-end-position) (point-max))
+                      (setq looking-forward nil)
+                    (forward-line 1))))))
+          (buffer-substring-no-properties paragraph-beg paragraph-end))))))
+
 (defun immersive-translate--elfeed-tube-p (&optional mode)
   "Return non-nil if the current feed in MODE is a Youtube RSS feed.
 
@@ -337,6 +382,8 @@ Return nil otherwise."
   (pcase major-mode
     ('org-mode
      (immersive-translate--org-get-paragraph))
+    ((or 'markdown-mode 'gfm-mode)
+     (immersive-translate--markdown-get-paragraph))
     ('Info-mode
      (immersive-translate--info-get-paragraph))
     ('helpful-mode
