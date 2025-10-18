@@ -196,13 +196,22 @@ not be translated."
     (string-match-p "^ *\(" (thing-at-point 'line t))))
 
 (defun immersive-translate--translation-exist-p ()
-  "Return non-nil if the current paragraph has been translated."
+  "Return non-nil if the current paragraph has already been translated."
   (save-excursion
-    (immersive-translate-end-of-paragraph)
-    (when-let* ((overlays (overlays-in (1- (point)) (1+ (point)))))
-      (cl-some (lambda (ov)
-                 (overlay-get ov 'after-string))
-               overlays))))
+    (let* ((paragraph (immersive-translate-join-lin
+                       (immersive-translate--get-paragraph)))
+           (content (when paragraph
+                      (if (eq immersive-translate-backend 'chatgpt)
+                          (immersive-translate-chatgpt-create-prompt paragraph)
+                        paragraph))))
+      (when content
+        (immersive-translate-end-of-paragraph)
+        (when-let* ((overlays (overlays-in (1- (point)) (1+ (point)))))
+          (cl-some (lambda (ov)
+                     (and (overlay-get ov 'after-string)
+                          (equal (overlay-get ov 'immersive-translate-origin)
+                                 content)))
+                   overlays))))))
 
 (defcustom immersive-translate-disable-predicates '(immersive-translate--translation-exist-p
                                                     immersive-translate--info-code-block-p
@@ -509,10 +518,11 @@ The filename is based on ORIGIN-CONTENT."
       (insert-file-contents file)
       (buffer-string))))
 
-(defun immersive-translate--add-ov (response)
+(defun immersive-translate--add-ov (response &optional origin-content)
   "Add an after-string overlay after point.
 
-The value of after-string is RESPONSE."
+The value of after-string is RESPONSE.  Optionally tag the overlay
+with ORIGIN-CONTENT so that we can detect duplicate translations."
   (let ((ovs (overlays-in (1- (point)) (point)))
         (new-ov (make-overlay (point) (1+ (point)))))
     (mapc (lambda (ov)
@@ -522,7 +532,10 @@ The value of after-string is RESPONSE."
     (overlay-put new-ov
                  'after-string
                  response)
-    (push new-ov immersive-translate--translation-overlays)))
+    (when origin-content
+      (overlay-put new-ov 'immersive-translate-origin origin-content))
+    (push new-ov immersive-translate--translation-overlays)
+    new-ov))
 
 (defun immersive-translate-callback (response info)
   "Insert RESPONSE from ChatGPT into the current buffer.
@@ -540,7 +553,7 @@ INFO is a plist containing information relevant to this buffer."
             (save-excursion
               (with-current-buffer (marker-buffer start-marker)
                 (goto-char start-marker)
-                (immersive-translate--add-ov response)
+                (immersive-translate--add-ov response origin-content)
                 (unless (string-match-p immersive-translate-failed-message response)
                   (immersive-translate--cache-translation response origin-content)))))
         (message "Response error: (%s) %s"
@@ -719,7 +732,7 @@ of `immersive-translate-backend' is used."
         (immersive-translate-end-of-paragraph)
         (if (immersive-translate--cache-p content)
             (let ((translation (immersive-translate--cache-get content)))
-              (immersive-translate--add-ov translation))
+              (immersive-translate--add-ov translation content))
           (setq ov (make-overlay (1- (point)) (point)))
           (overlay-put ov
                        'after-string
